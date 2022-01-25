@@ -1,0 +1,5 @@
+student:
+  msg: bamboo
+
+server:
+  port: 2121
