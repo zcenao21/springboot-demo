@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/")
+@RequestMapping("/log")
 public class Log4jTestController {
 
     private static final Logger logger = LogManager.getLogger(Log4jTestController.class);

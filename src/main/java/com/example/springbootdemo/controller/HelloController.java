@@ -1,6 +1,8 @@
 package com.example.springbootdemo.controller;
 
+import com.example.springbootdemo.entity.Car;
 import com.example.springbootdemo.entity.Message;
+import com.example.springbootdemo.entity.Person;
 import com.example.springbootdemo.service.HelloService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,7 +16,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 
 @Controller
-@RequestMapping("/")
+@RequestMapping("/hello")
 public class HelloController {
     private static final Logger logger = LogManager.getLogger();
 
@@ -23,11 +25,30 @@ public class HelloController {
     @Autowired
     Message message;
 
+    @Autowired
+    Car car;
+
+    @Autowired
+    Person person;
+
     @RequestMapping("/hello2")
     @ResponseBody
     public String helloWorld(){
         return message.getMsg();
     }
+
+    @RequestMapping("/hello8")
+    @ResponseBody
+    public String hello3(){
+        return car.toString();
+    }
+
+    @RequestMapping("/yaml")
+    @ResponseBody
+    public String yaml(){
+        return person.toString();
+    }
+
 
     public static void main(String[] args) {
         String name = "${java:vm}";

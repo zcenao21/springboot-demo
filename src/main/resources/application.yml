@@ -3,3 +3,44 @@ student:
 
 server:
   port: 2121
+
+car:
+  brand: 奔驰
+  price: 800000
+
+person:
+  userName: will
+  boss: true
+  birth: 1994/01/01
+  age: 21
+  car:
+    price: 100000
+    brand: BYD
+  interests:
+    - 抽烟
+    - 喝酒
+    - 烫头
+  animal:
+    - dog
+    - cat
+  score:
+    english: 100
+    math: {20230301: 150, 20230401: 150}
+  salarys:
+    - 10000
+    - 20000
+  allCars:
+    good:
+      - {price: 1000000, brand: 奔驰}
+      - {price: 2000000, brand: 宝马}
+    bad:
+      - {price: 3000, brand: 雅迪}
+
+#spring:
+#  mvc:
+#    hiddenmethod:
+#      filter:
+#        enabled: true   #开启页面表单的Rest功能
+
+spring:
+  mvc
