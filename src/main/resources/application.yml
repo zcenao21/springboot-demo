@@ -43,4 +43,20 @@ person:
 #        enabled: true   #开启页面表单的Rest功能
 
 spring:
-  mvc
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 100MB
+
+
+
+#设置应用的日志级别
+logging:
+  level:
+    com:
+      glmapper:
+        spring:
+          boot: INFO
+  #路径
+  path: ./logs
+

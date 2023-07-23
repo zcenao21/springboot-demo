@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="hi">Title</title>
+</head>
+<body>
+    <form method="post" action="/uploadMulti" enctype="multipart/form-data">
+        上传头像：<input type="file" name="header"> </br>
+        上传生活照: <input type="file" name="dailyPhotos" multiple>
+        <button type="submit">点击上传</button>
+    </form>
+</body>
+</html>
