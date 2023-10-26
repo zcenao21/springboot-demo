@@ -3,7 +3,8 @@ package com.example.springbootdemo.controller;
 import com.example.springbootdemo.entity.Car;
 import com.example.springbootdemo.entity.Message;
 import com.example.springbootdemo.entity.Person;
-import com.example.springbootdemo.service.HelloService;
+import com.example.springbootdemo.exception.HelloException;
+import com.will.service.HelloService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,7 +39,8 @@ public class HelloController {
     private static final Logger logger = LogManager.getLogger();
 
     @Autowired
-    private HelloService helloService;
+    HelloService helloService;
+
     @Autowired
     Message message;
 
@@ -54,6 +57,24 @@ public class HelloController {
         int i = 1/0;
         return message.getMsg();
     }
+
+    @RequestMapping("/hello3")
+    @ResponseBody
+    public String helloWorld3(){
+        logger.info("hello method3 called!");
+        if(true){
+            throw new HelloException();
+        }
+        return message.getMsg();
+    }
+
+    @RequestMapping("/hello4")
+    @ResponseBody
+    public String helloWorld4(@RequestParam Integer a){
+        logger.info("hello method4 called!");
+        return message.getMsg();
+    }
+
 
     @RequestMapping("/hello8")
     @ResponseBody
@@ -110,6 +131,11 @@ public class HelloController {
         map.put("gender", Arrays.toString(gender.toArray()));
         map.put("ageSon", ageSon);
         return map;
+    }
+
+    @GetMapping("/will/hello")
+    public String sayHello(){
+        return helloService.sayHello("小张");
     }
 
 

@@ -47,6 +47,10 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 100MB
+  datasource:
+    url: jdbc:mysql://localhost:3306/dm
+    username: root
+    password: 123456
 
 
 
@@ -60,3 +64,11 @@ logging:
   #路径
   path: ./logs
 
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+
+will:
+  hello:
+    prefix: hi
+    suffix: go
