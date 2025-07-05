@@ -3,119 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <title>欢迎使用Will的网站</title>
+    <link rel="stylesheet" href="styles.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
+        /* 烟花效果样式 */
+    .firework-particle {
+        position: fixed;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9999;
+    }
 
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
+    /* 烟花按钮 */
+    .firework-btn {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(45deg, #ff6b6b, #feca57);
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        transition: all 0.3s;
+        z-index: 1000;
+    }
 
-        .header {
-            background: #007bff;
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-
-        .tabs {
-            display: flex;
-            background: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
-        }
-
-        .tab {
-            flex: 1;
-            padding: 15px 20px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            transition: all 0.3s;
-            border-bottom: 3px solid transparent;
-        }
-
-        .tab:hover {
-            background: #e9ecef;
-        }
-
-        .tab.active {
-            background: white;
-            border-bottom-color: #007bff;
-            color: #007bff;
-        }
-
-        .tab-content {
-            display: none;
-            padding: 30px;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .btn {
-            background: #007bff;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-right: 10px;
-            transition: background 0.3s;
-        }
-
-        .btn:hover {
-            background: #0056b3;
-        }
-
-        .btn-danger {
-            background: #dc3545;
-        }
-
-        .btn-danger:hover {
-            background: #c82333;
-        }
-
-        .btn-success {
-            background: #28a745;
-        }
-
-        .btn-success:hover {
-            background: #218838;
-        }
+    .firework-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
     </style>
 </head>
 <body>
-    <div class="container">
+<button class="firework-btn" onclick="createRandomFirework()">🎆 烟花</button>
+
+<div class="container">
         <div class="header">
             <h1>21 Spring Test</h1>
         </div>
@@ -179,22 +106,111 @@
         </div>
     </div>
 
-    <script>
-        function showTab(tabId) {
-            // 隐藏所有标签页内容
-            const contents = document.querySelectorAll('.tab-content');
-            contents.forEach(content => content.classList.remove('active'));
+<script>
+    function showTab(tabId) {
+        const contents = document.querySelectorAll('.tab-content');
+        contents.forEach(content => content.classList.remove('active'));
 
-            // 移除所有标签的active状态
-            const tabs = document.querySelectorAll('.tab');
-            tabs.forEach(tab => tab.classList.remove('active'));
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(tab => tab.classList.remove('active'));
 
-            // 显示选中的标签页内容
-            document.getElementById(tabId).classList.add('active');
+        document.getElementById(tabId).classList.add('active');
+        event.target.classList.add('active');
+    }
 
-            // 激活对应的标签
-            event.target.classList.add('active');
+    // 简化的烟花效果
+    function createFirework(x, y) {
+        console.log('创建烟花在位置:', x, y); // 调试用
+
+        const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff'];
+        const particleCount = 20;
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'firework-particle';
+
+            // 设置样式
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            particle.style.backgroundColor = color;
+            particle.style.boxShadow = `0 0 6px ${color}`;
+
+            // 设置初始位置
+            particle.style.left = (x - 3) + 'px';
+            particle.style.top = (y - 3) + 'px';
+
+            document.body.appendChild(particle);
+
+            // 计算运动方向
+            const angle = (Math.PI * 2 * i) / particleCount;
+            const speed = 2 + Math.random() * 3;
+            let dx = Math.cos(angle) * speed;
+            let dy = Math.sin(angle) * speed;
+            let opacity = 1;
+            let size = 6;
+
+            // 动画函数
+            function animate() {
+                const currentLeft = parseFloat(particle.style.left);
+                const currentTop = parseFloat(particle.style.top);
+
+                particle.style.left = (currentLeft + dx) + 'px';
+                particle.style.top = (currentTop + dy) + 'px';
+
+                // 添加重力效果
+                dy += 0.1;
+                dx *= 0.99;
+
+                // 淡出效果
+                opacity -= 0.02;
+                size *= 0.98;
+
+                particle.style.opacity = opacity;
+                particle.style.width = size + 'px';
+                particle.style.height = size + 'px';
+
+                if (opacity > 0 && size > 0.5) {
+                    requestAnimationFrame(animate);
+                } else {
+                    if (particle.parentNode) {
+                        particle.parentNode.removeChild(particle);
+                    }
+                }
+            }
+
+            // 延迟启动动画，创造爆炸效果
+            setTimeout(() => {
+                requestAnimationFrame(animate);
+            }, Math.random() * 100);
         }
-    </script>
+    }
+
+    // 随机位置创建烟花
+    function createRandomFirework() {
+        const x = Math.random() * window.innerWidth;
+        const y = Math.random() * window.innerHeight;
+        createFirework(x, y);
+        console.log('随机烟花触发'); // 调试用
+    }
+
+    // 点击页面创建烟花
+    document.addEventListener('click', function(e) {
+        // 排除按钮和表单元素
+        if (e.target.tagName !== 'BUTTON' &&
+            e.target.tagName !== 'INPUT' &&
+            e.target.tagName !== 'LABEL') {
+            createFirework(e.clientX, e.clientY);
+            console.log('点击烟花触发'); // 调试用
+        }
+    });
+
+    // 页面加载完成后测试烟花
+    window.addEventListener('load', function() {
+        console.log('页面加载完成，准备显示烟花');
+        setTimeout(() => {
+            createFirework(window.innerWidth / 2, window.innerHeight / 2);
+        }, 1000);
+    });
+</script>
+
 </body>
 </html>
