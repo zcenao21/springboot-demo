@@ -3,25 +3,198 @@
 <head>
     <meta charset="UTF-8">
     <title>欢迎使用Will的网站</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab:hover {
+            background: #e9ecef;
+        }
+
+        .tab.active {
+            background: white;
+            border-bottom-color: #007bff;
+            color: #007bff;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #0056b3;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+    </style>
 </head>
 <body>
-    <h1>21 Spring Test</h1>
-    <form action="/user" method="get">
-        <input value="Get请求" type="submit">
-    </form>
-    <form action="/user" method="post">
-        <input name="_m" value="DELETE" type="hidden">
-        <input value="delete请求" type="submit">
-    </form>
-    <FORM action="/upload" enctype="multipart/form-data" method="post"> <P>
-        What files are you sending? <INPUT type="file" name="file"><BR>
-        <INPUT type="submit" value="Send">
-        <INPUT type="reset">
-    </FORM>
-    <form action="/hello/save" method="post">
-        姓名：<input name="name"> </br>
-        年龄：<input name="age"></br>
-        <input value="提交" type="submit">
-    </form>
+    <div class="container">
+        <div class="header">
+            <h1>21 Spring Test</h1>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('user-tab')">用户操作</button>
+            <button class="tab" onclick="showTab('upload-tab')">文件上传</button>
+            <button class="tab" onclick="showTab('form-tab')">表单提交</button>
+        </div>
+
+        <!-- 用户操作标签页 -->
+        <div id="user-tab" class="tab-content active">
+            <h3>用户操作</h3>
+            <p>测试不同的HTTP请求方法</p>
+
+            <div class="form-group">
+                <form action="/user" method="get">
+                    <input class="btn" value="GET请求" type="submit">
+                </form>
+            </div>
+
+            <div class="form-group">
+                <form action="/user" method="post">
+                    <input name="_m" value="DELETE" type="hidden">
+                    <input class="btn btn-danger" value="DELETE请求" type="submit">
+                </form>
+            </div>
+        </div>
+
+        <!-- 文件上传标签页 -->
+        <div id="upload-tab" class="tab-content">
+            <h3>文件上传</h3>
+            <p>选择文件并上传到服务器</p>
+
+            <form action="/upload" enctype="multipart/form-data" method="post">
+                <div class="form-group">
+                    <label for="file">选择文件：</label>
+                    <input type="file" name="file" id="file">
+                </div>
+                <input class="btn btn-success" type="submit" value="上传文件">
+                <input class="btn" type="reset" value="重置">
+            </form>
+        </div>
+
+        <!-- 表单提交标签页 -->
+        <div id="form-tab" class="tab-content">
+            <h3>用户信息表单</h3>
+            <p>填写并提交用户信息</p>
+
+            <form action="/hello/save" method="post">
+                <div class="form-group">
+                    <label for="name">姓名：</label>
+                    <input name="name" id="name" placeholder="请输入姓名">
+                </div>
+                <div class="form-group">
+                    <label for="age">年龄：</label>
+                    <input name="age" id="age" type="number" placeholder="请输入年龄">
+                </div>
+                <input class="btn btn-success" value="提交" type="submit">
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabId) {
+            // 隐藏所有标签页内容
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+
+            // 移除所有标签的active状态
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+
+            // 显示选中的标签页内容
+            document.getElementById(tabId).classList.add('active');
+
+            // 激活对应的标签
+            event.target.classList.add('active');
+        }
+    </script>
 </body>
 </html>
