@@ -360,6 +360,10 @@ function previewCSVFile(file, previewId, previewContentId, fileType) {
                 columnsA = headers;
             } else {
                 columnsB = headers;
+                // 文件B上传完成后，如果文件A也已上传，自动更新主键选择框
+                if (columnsA.length > 0) {
+                    updatePrimaryKeySelects(columnsA, columnsB);
+                }
             }
 
             const previewLines = lines.slice(0, 10);
@@ -466,32 +470,30 @@ function removeMatchRule(ruleId) {
 
 // 获取匹配规则配置
 function getMatchRules() {
+    const primaryKeys = [];
+
+    // 收集所有主键字段对
+    const primaryKeyMappings = document.querySelectorAll('#primaryKeyRules .field-mapping');
+    primaryKeyMappings.forEach(mapping => {
+        const fieldA = mapping.querySelector('.primaryKeyA').value;
+        const fieldB = mapping.querySelector('.primaryKeyB').value;
+
+        if (fieldA && fieldB) {
+            primaryKeys.push({
+                fieldA: fieldA,
+                fieldB: fieldB
+            });
+        }
+    });
+
     const rules = {
-        primaryKey: {
-            fieldA: document.getElementById('primaryKeyA').value,
-            fieldB: document.getElementById('primaryKeyB').value
-        },
-        additionalRules: [],
+        primaryKeys: primaryKeys,
         options: {
             caseSensitive: document.getElementById('caseSensitive').checked,
             trimSpaces: document.getElementById('trimSpaces').checked,
             exactMatch: document.getElementById('exactMatch').checked
         }
     };
-
-    // 收集附加规则
-    const additionalRules = document.querySelectorAll('.additional-rule-item');
-    additionalRules.forEach(rule => {
-        const fieldA = rule.querySelector('.rule-field-a').value;
-        const fieldB = rule.querySelector('.rule-field-b').value;
-
-        if (fieldA && fieldB) {
-            rules.additionalRules.push({
-                fieldA: fieldA,
-                fieldB: fieldB
-            });
-        }
-    });
 
     return rules;
 }
@@ -500,8 +502,8 @@ function getMatchRules() {
 function validateMatchRules() {
     const rules = getMatchRules();
 
-    if (!rules.primaryKey.fieldA || !rules.primaryKey.fieldB) {
-        alert('请选择主键匹配字段！');
+    if (rules.primaryKeys.length === 0) {
+        alert('请至少配置一个主键匹配字段！');
         return false;
     }
 
@@ -592,4 +594,76 @@ function processMatch() {
     alert('匹配规则配置完成！\n主键字段: ' +
           matchRules.primaryKey.fieldA + ' ↔ ' + matchRules.primaryKey.fieldB +
           '\n附加规则数量: ' + matchRules.additionalRules.length);
+}
+
+// 假设 headerA 和 headerB 是数组，分别存储文件A和B的表头
+function updatePrimaryKeySelects(headerA, headerB) {
+    // 更新所有A的下拉框
+    document.querySelectorAll('.primaryKeyA').forEach(function(select) {
+        const currentValue = select.value; // 保存当前选中的值
+        select.innerHTML = '<option value="">请选择文件A的主键字段</option>';
+        headerA.forEach(function(col) {
+            const option = document.createElement('option');
+            option.value = col;
+            option.textContent = col;
+            if (col === currentValue) {
+                option.selected = true; // 恢复之前的选择
+            }
+            select.appendChild(option);
+        });
+    });
+    // 更新所有B的下拉框
+    document.querySelectorAll('.primaryKeyB').forEach(function(select) {
+        const currentValue = select.value; // 保存当前选中的值
+        select.innerHTML = '<option value="">请选择文件B的主键字段</option>';
+        headerB.forEach(function(col) {
+            const option = document.createElement('option');
+            option.value = col;
+            option.textContent = col;
+            if (col === currentValue) {
+                option.selected = true; // 恢复之前的选择
+            }
+            select.appendChild(option);
+        });
+    });
+}
+
+// 在文件解析出表头后调用
+// 例如：updatePrimaryKeySelects(headerA, headerB);
+
+function addPrimaryKeyRule() {
+    const primaryKeyRules = document.getElementById('primaryKeyRules');
+    const newRule = document.createElement('div');
+    newRule.className = 'field-mapping';
+
+    newRule.innerHTML = `
+        <select class="field-select primaryKeyA">
+            <option value="">请选择文件A的主键字段</option>
+        </select>
+        <span class="mapping-arrow">↔</span>
+        <select class="field-select primaryKeyB">
+            <option value="">请选择文件B的主键字段</option>
+        </select>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="removePrimaryKeyRule(this)">-</button>
+    `;
+
+    primaryKeyRules.appendChild(newRule);
+
+    // 更新新添加的下拉框选项
+    if (columnsA.length > 0 && columnsB.length > 0) {
+        updatePrimaryKeySelects(columnsA, columnsB);
+    }
+}
+
+// 删除主键字段
+function removePrimaryKeyRule(button) {
+    const fieldMapping = button.parentElement;
+    const primaryKeyRules = document.getElementById('primaryKeyRules');
+
+    // 确保至少保留一个主键字段
+    if (primaryKeyRules.children.length > 2) { // label + 至少一个field-mapping
+        fieldMapping.remove();
+    } else {
+        alert('至少需要保留一个主键字段！');
+    }
 }
