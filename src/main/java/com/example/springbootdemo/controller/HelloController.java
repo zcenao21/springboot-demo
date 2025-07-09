@@ -4,7 +4,7 @@ import com.example.springbootdemo.entity.Car;
 import com.example.springbootdemo.entity.Message;
 import com.example.springbootdemo.entity.Person;
 import com.example.springbootdemo.exception.HelloException;
-import com.will.service.HelloService;
+import com.example.springbootdemo.service.HelloService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -135,7 +135,7 @@ public class HelloController {
 
     @GetMapping("/will/hello")
     public String sayHello(){
-        return helloService.sayHello("小张");
+        return helloService.sayHello();
     }
 
 
