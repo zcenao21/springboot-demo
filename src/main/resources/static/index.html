@@ -5,6 +5,7 @@
     <title>欢迎使用Will的网站</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/firework.css">
+    <link rel="stylesheet" href="css/excelUpload.css">
 </head>
 <body>
     <div class="container">
@@ -20,20 +21,45 @@
 
         <!-- 用户操作标签页 -->
         <div id="user-tab" class="tab-content active">
-            <h3>用户操作</h3>
-            <p>测试不同的HTTP请求方法</p>
+            <h3>表格内容匹配</h3>
+            <p>上传两个CSV文件进行内容匹配对比</p>
 
-            <div class="form-group">
-                <form action="/user" method="get">
-                    <input class="btn" value="GET请求" type="submit">
-                </form>
+            <div class="excel-upload-container">
+                <div class="excel-upload-section">
+                    <h4>📊 CSV文件 A</h4>
+                    <form action="/uploadCsvA" enctype="multipart/form-data" method="post" class="excel-form">
+                        <div class="form-group">
+                            <label for="csvA">选择第一个CSV文件：</label>
+                            <input type="file" name="file" id="csvA" accept=".csv" class="file-input">
+                            <div class="file-info" id="fileInfoA">未选择文件</div>
+                        </div>
+                        <input class="btn btn-primary" type="submit" value="上传文件A">
+                    </form>
+                </div>
+
+                <div class="excel-upload-section">
+                    <h4>📊 CSV文件 B</h4>
+                    <form action="/uploadCsvB" enctype="multipart/form-data" method="post" class="excel-form">
+                        <div class="form-group">
+                            <label for="csvB">选择第二个CSV文件：</label>
+                            <input type="file" name="file" id="csvB" accept=".csv" class="file-input">
+                            <div class="file-info" id="fileInfoB">未选择文件</div>
+                        </div>
+                        <input class="btn btn-primary" type="submit" value="上传文件B">
+                    </form>
+                </div>
             </div>
 
-            <div class="form-group">
-                <form action="/user" method="post">
-                    <input name="_m" value="DELETE" type="hidden">
-                    <input class="btn btn-danger" value="DELETE请求" type="submit">
-                </form>
+            <div class="match-controls">
+                <button class="btn btn-success" onclick="startMatching()">🔍 开始匹配</button>
+                <button class="btn btn-secondary" onclick="clearFiles()">🗑️ 清空文件</button>
+            </div>
+
+            <div class="match-results" id="matchResults" style="display: none;">
+                <h4>匹配结果</h4>
+                <div class="results-content">
+                    <p>匹配结果将在这里显示...</p>
+                </div>
             </div>
         </div>
 
@@ -73,6 +99,6 @@
 
     <script src="js/main.js"></script>
     <script src="js/firework.js"></script>
-
+    <script src="js/excelProcess.js"></script>
 </body>
 </html>
