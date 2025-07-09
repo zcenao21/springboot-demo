@@ -5,18 +5,11 @@ import com.example.springbootdemo.dto.CsvMatchResult;
 import com.example.springbootdemo.service.UploadService;
 import com.example.springbootdemo.util.HttpUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.ibatis.annotations.Param;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
@@ -147,8 +140,11 @@ public class UploadController {
 
     @RequestMapping(value="/api/excel/match", method = RequestMethod.POST)
     @ResponseBody
-    public Map<String, Object> matchCsvFiles(@RequestPart MultipartFile fileA, @RequestPart MultipartFile fileB) {
+    public Map<String, Object> matchCsvFiles(@RequestPart MultipartFile fileA,
+                                           @RequestPart MultipartFile fileB,
+                                           @RequestParam String matchRules) {
         log.info("开始匹配CSV文件: {} vs {}", fileA.getOriginalFilename(), fileB.getOriginalFilename());
+        log.info("匹配规则配置: {}", matchRules);
 
         Map<String, Object> result = new HashMap<>();
 
@@ -166,8 +162,8 @@ public class UploadController {
             CsvAnalysisResult analysisA = uploadService.analyzeCsvFile(fileA, "MATCH_A");
             CsvAnalysisResult analysisB = uploadService.analyzeCsvFile(fileB, "MATCH_B");
 
-            // 执行匹配
-            CsvMatchResult matchResult = uploadService.matchCsvFiles(analysisA, analysisB);
+            // 执行匹配，传入匹配规则配置
+            CsvMatchResult matchResult = uploadService.matchCsvFiles(analysisA, analysisB, matchRules);
 
             // 构建响应结果
             result.put("success", true);

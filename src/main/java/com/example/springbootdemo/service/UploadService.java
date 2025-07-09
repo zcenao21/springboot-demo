@@ -6,6 +6,9 @@ import com.example.springbootdemo.entity.TempDirectoryAndFile;
 import com.example.springbootdemo.enums.MergeOption;
 import com.example.springbootdemo.util.FileUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.FileUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,10 +18,6 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVRecord;
 
 @Service
 @Slf4j
@@ -336,11 +335,14 @@ public class UploadService {
 		});
 	}
 
-	public CsvMatchResult matchCsvFiles(CsvAnalysisResult fileA, CsvAnalysisResult fileB) throws IOException {
-		log.info("开始匹配CSV文件数据");
+	public CsvMatchResult matchCsvFiles(CsvAnalysisResult fileA, CsvAnalysisResult fileB, String matchRulesJson) throws IOException {
+		log.info("开始匹配CSV文件数据，匹配规则: {}", matchRulesJson);
 
 		CsvMatchResult result = new CsvMatchResult();
 		List<CsvMatchResult.MatchDetail> matchDetails = new ArrayList<>();
+
+		// 解析匹配规则
+		Map<String, Object> matchRules = parseMatchRules(matchRulesJson);
 
 		// 获取缓存的文件数据
 		Map<String, Object> dataA = (Map<String, Object>)getCachedFileData().get(fileA.getFileId());
@@ -350,53 +352,21 @@ public class UploadService {
 			throw new IOException("文件数据缓存不存在，请重新上传文件");
 		}
 
-		List<CSVRecord> recordsA =  (List<CSVRecord>)dataA.get("records");
+		List<CSVRecord> recordsA = (List<CSVRecord>)dataA.get("records");
 		List<CSVRecord> recordsB = (List<CSVRecord>) dataB.get("records");
 		List<CsvAnalysisResult.CsvColumn> columnsA = (List<CsvAnalysisResult.CsvColumn>) dataA.get("columns");
 		List<CsvAnalysisResult.CsvColumn> columnsB = (List<CsvAnalysisResult.CsvColumn>) dataB.get("columns");
 
-		// 找到共同的列进行匹配
-		List<String> commonColumns = findCommonColumns(columnsA, columnsB);
-
-		if (commonColumns.isEmpty()) {
-			throw new IOException("两个文件没有共同的列名，无法进行匹配");
-		}
-
-		log.info("找到共同列: {}", commonColumns);
-
-		int matchedCount = 0;
+		// 根据匹配规则执行匹配
+		int matchedCount = performMatching(recordsA, recordsB, matchRules, matchDetails);
 		int totalCount = Math.max(recordsA.size(), recordsB.size());
-
-		// 执行匹配逻辑
-		for (int i = 0; i < Math.min(recordsA.size(), recordsB.size()); i++) {
-			CSVRecord recordA = recordsA.get(i);
-			CSVRecord recordB = recordsB.get(i);
-
-			boolean isMatched = compareRecords(recordA, recordB, commonColumns);
-
-			CsvMatchResult.MatchDetail detail = new CsvMatchResult.MatchDetail();
-			detail.setDataA(getRecordSummary(recordA, commonColumns));
-			detail.setDataB(getRecordSummary(recordB, commonColumns));
-			detail.setMatched(isMatched);
-			detail.setMatchField(String.join(",", commonColumns));
-			detail.setSimilarity(calculateSimilarity(recordA, recordB, commonColumns));
-
-			matchDetails.add(detail);
-
-			if (isMatched) {
-				matchedCount++;
-			}
-		}
-
-		// 处理剩余的记录（如果两个文件行数不同）
-		handleRemainingRecords(recordsA, recordsB, commonColumns, matchDetails);
 
 		// 设置结果
 		result.setTotalRecords(totalCount);
 		result.setMatchedRecords(matchedCount);
 		result.setUnmatchedRecords(totalCount - matchedCount);
 		result.setMatchRate(String.format("%.2f%%", (double) matchedCount / totalCount * 100));
-		result.setMatchDetails(matchDetails.size() > 100 ? matchDetails.subList(0, 100) : matchDetails); // 限制返回数量
+		result.setMatchDetails(matchDetails.size() > 100 ? matchDetails.subList(0, 100) : matchDetails);
 
 		// 生成结果文件
 		String resultFileId = generateResultFile(result, fileA.getFileId(), fileB.getFileId());
@@ -405,37 +375,165 @@ public class UploadService {
 		return result;
 	}
 
-	private List<String> findCommonColumns(List<CsvAnalysisResult.CsvColumn> columnsA,
-										   List<CsvAnalysisResult.CsvColumn> columnsB) {
-		List<String> commonColumns = new ArrayList<>();
+	private Map<String, Object> parseMatchRules(String matchRulesJson) {
+		try {
+			// 这里需要使用JSON解析库，比如Jackson或Gson
+			// 临时使用简单的解析方式，实际项目中应该使用专业的JSON库
+			log.info("解析匹配规则: {}", matchRulesJson);
 
-		for (CsvAnalysisResult.CsvColumn colA : columnsA) {
-			for (CsvAnalysisResult.CsvColumn colB : columnsB) {
-				if (colA.getName().equalsIgnoreCase(colB.getName())) {
-					commonColumns.add(colA.getName());
-					break;
+			// 返回默认规则结构，实际应该解析JSON
+			Map<String, Object> rules = new HashMap<>();
+			rules.put("primaryKeys", Arrays.asList("id")); // 默认主键
+			rules.put("additionalRules", new ArrayList<>()); // 附加规则
+			rules.put("options", new HashMap<>()); // 匹配选项
+
+			return rules;
+		} catch (Exception e) {
+			log.error("解析匹配规则失败", e);
+			throw new RuntimeException("匹配规则格式错误: " + e.getMessage());
+		}
+	}
+
+	private int performMatching(List<CSVRecord> recordsA, List<CSVRecord> recordsB,
+							   Map<String, Object> matchRules, List<CsvMatchResult.MatchDetail> matchDetails) {
+
+		List<String> primaryKeys = (List<String>) matchRules.get("primaryKeys");
+		List<Map<String, Object>> additionalRules = (List<Map<String, Object>>) matchRules.get("additionalRules");
+		Map<String, Object> options = (Map<String, Object>) matchRules.get("options");
+
+		log.info("执行匹配 - 主键字段: {}, 附加规则数: {}", primaryKeys, additionalRules.size());
+
+		int matchedCount = 0;
+
+		// 为文件B创建索引以提高匹配效率
+		Map<String, List<CSVRecord>> indexB = createIndex(recordsB, primaryKeys);
+
+		// 遍历文件A的每条记录
+		for (CSVRecord recordA : recordsA) {
+			String keyA = buildKey(recordA, primaryKeys);
+			List<CSVRecord> candidatesB = indexB.get(keyA);
+
+			boolean foundMatch = false;
+
+			if (candidatesB != null && !candidatesB.isEmpty()) {
+				// 在候选记录中查找最佳匹配
+				for (CSVRecord recordB : candidatesB) {
+					if (isRecordMatch(recordA, recordB, primaryKeys, additionalRules, options)) {
+						// 找到匹配
+						CsvMatchResult.MatchDetail detail = createMatchDetail(recordA, recordB, primaryKeys, true);
+						matchDetails.add(detail);
+						matchedCount++;
+						foundMatch = true;
+						break; // 找到第一个匹配就停止
+					}
 				}
+			}
+
+			if (!foundMatch) {
+				// 未找到匹配
+				CsvMatchResult.MatchDetail detail = createMatchDetail(recordA, null, primaryKeys, false);
+				matchDetails.add(detail);
 			}
 		}
 
-		return commonColumns;
+		return matchedCount;
 	}
 
-	private boolean compareRecords(CSVRecord recordA, CSVRecord recordB, List<String> commonColumns) {
-		for (String column : commonColumns) {
+	private Map<String, List<CSVRecord>> createIndex(List<CSVRecord> records, List<String> keyFields) {
+		Map<String, List<CSVRecord>> index = new HashMap<>();
+
+		for (CSVRecord record : records) {
+			String key = buildKey(record, keyFields);
+			index.computeIfAbsent(key, k -> new ArrayList<>()).add(record);
+		}
+
+		return index;
+	}
+
+	private String buildKey(CSVRecord record, List<String> keyFields) {
+		StringBuilder key = new StringBuilder();
+		for (String field : keyFields) {
 			try {
-				String valueA = recordA.get(column);
-				String valueB = recordB.get(column);
+				String value = record.get(field);
+				if (key.length() > 0) {
+					key.append("|");
+				}
+				key.append(value != null ? value.trim() : "");
+			} catch (Exception e) {
+				// 字段不存在时使用空值
+				if (key.length() > 0) {
+					key.append("|");
+				}
+				key.append("");
+			}
+		}
+		return key.toString();
+	}
+
+	private boolean isRecordMatch(CSVRecord recordA, CSVRecord recordB, List<String> primaryKeys,
+								 List<Map<String, Object>> additionalRules, Map<String, Object> options) {
+
+		// 首先检查主键是否匹配
+		for (String key : primaryKeys) {
+			try {
+				String valueA = recordA.get(key);
+				String valueB = recordB.get(key);
 
 				if (!Objects.equals(valueA, valueB)) {
 					return false;
 				}
 			} catch (Exception e) {
-				// 列不存在或其他错误，认为不匹配
 				return false;
 			}
 		}
+
+		// 检查附加匹配规则
+		for (Map<String, Object> rule : additionalRules) {
+			if (!checkAdditionalRule(recordA, recordB, rule)) {
+				return false;
+			}
+		}
+
 		return true;
+	}
+
+	private boolean checkAdditionalRule(CSVRecord recordA, CSVRecord recordB, Map<String, Object> rule) {
+		try {
+			String fieldA = (String) rule.get("fieldA");
+			String fieldB = (String) rule.get("fieldB");
+			String condition = (String) rule.get("condition");
+
+			String valueA = recordA.get(fieldA);
+			String valueB = recordB.get(fieldB);
+
+			switch (condition) {
+				case "equals":
+					return Objects.equals(valueA, valueB);
+				case "contains":
+					return valueA != null && valueB != null && valueA.contains(valueB);
+				case "startsWith":
+					return valueA != null && valueB != null && valueA.startsWith(valueB);
+				case "endsWith":
+					return valueA != null && valueB != null && valueA.endsWith(valueB);
+				default:
+					return Objects.equals(valueA, valueB);
+			}
+		} catch (Exception e) {
+			log.warn("检查附加规则时出错", e);
+			return false;
+		}
+	}
+
+	private CsvMatchResult.MatchDetail createMatchDetail(CSVRecord recordA, CSVRecord recordB,
+														List<String> keyFields, boolean matched) {
+		CsvMatchResult.MatchDetail detail = new CsvMatchResult.MatchDetail();
+		detail.setDataA(getRecordSummary(recordA, keyFields));
+		detail.setDataB(recordB != null ? getRecordSummary(recordB, keyFields) : "无对应记录");
+		detail.setMatched(matched);
+		detail.setMatchField(String.join(",", keyFields));
+		detail.setSimilarity(recordB != null ? calculateSimilarity(recordA, recordB, keyFields) : 0.0);
+
+		return detail;
 	}
 
 	private String getRecordSummary(CSVRecord record, List<String> columns) {

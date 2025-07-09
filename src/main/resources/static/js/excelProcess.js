@@ -44,7 +44,16 @@ function startMatching() {
         alert('请先上传两个CSV文件！');
         return;
     }
-// 显示结果区域和加载状态
+
+    // 验证匹配规则
+    if (!validateMatchRules()) {
+        return;
+    }
+
+    // 获取匹配规则配置
+    const matchRules = getMatchRules();
+
+    // 显示结果区域和加载状态
     const resultsDiv = document.getElementById('matchResults');
     const resultsContent = resultsDiv.querySelector('.results-content');
     resultsDiv.style.display = 'block';
@@ -64,6 +73,7 @@ function startMatching() {
     const formData = new FormData();
     formData.append('fileA', fileA);
     formData.append('fileB', fileB);
+    formData.append('matchRules', JSON.stringify(matchRules));
 
     // 调用后端API
     fetch('/api/excel/match', {
