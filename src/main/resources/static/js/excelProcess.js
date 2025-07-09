@@ -261,10 +261,12 @@ function addProgressStyles() {
 }
 
 function clearFiles() {
-    document.getElementById('excelA').value = '';
-    document.getElementById('excelB').value = '';
-    updateFileInfo('fileInfoA', null);
-    updateFileInfo('fileInfoB', null);
+    document.getElementById('csvA').value = '';
+    document.getElementById('csvB').value = '';
+    document.getElementById('fileInfoA').textContent = '未选择文件';
+    document.getElementById('fileInfoB').textContent = '未选择文件';
+    document.getElementById('previewA').style.display = 'none';
+    document.getElementById('previewB').style.display = 'none';
 
     const resultsDiv = document.getElementById('matchResults');
     resultsDiv.style.display = 'none';
@@ -274,3 +276,137 @@ function clearFiles() {
 document.addEventListener('DOMContentLoaded', function() {
     addProgressStyles();
 });
+
+// 添加文件预览功能
+document.addEventListener('DOMContentLoaded', function() {
+    const csvAInput = document.getElementById('csvA');
+    const csvBInput = document.getElementById('csvB');
+
+    if (csvAInput) {
+        csvAInput.addEventListener('change', function(e) {
+            handleFileSelect(e, 'A');
+        });
+    }
+
+    if (csvBInput) {
+        csvBInput.addEventListener('change', function(e) {
+            handleFileSelect(e, 'B');
+        });
+    }
+});
+
+function handleFileSelect(event, fileType) {
+    const file = event.target.files[0];
+    const fileInfoId = `fileInfo${fileType}`;
+    const previewId = `preview${fileType}`;
+    const previewContentId = `previewContent${fileType}`;
+
+    if (file) {
+        // 更新文件信息
+        document.getElementById(fileInfoId).textContent =
+            `${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+
+        // 预览文件内容
+        previewCSVFile(file, previewId, previewContentId);
+    } else {
+        document.getElementById(fileInfoId).textContent = '未选择文件';
+        document.getElementById(previewId).style.display = 'none';
+    }
+}
+
+function previewCSVFile(file, previewId, previewContentId) {
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        try {
+            const text = e.target.result;
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+
+            if (lines.length === 0) {
+                showPreviewError(previewContentId, '文件为空');
+                return;
+            }
+
+            // 只显示前10行
+            const previewLines = lines.slice(0, 10);
+            const table = createPreviewTable(previewLines);
+
+            document.getElementById(previewContentId).innerHTML = table;
+            document.getElementById(previewId).style.display = 'block';
+
+        } catch (error) {
+            showPreviewError(previewContentId, '文件读取失败: ' + error.message);
+        }
+    };
+
+    reader.onerror = function() {
+        showPreviewError(previewContentId, '文件读取失败');
+    };
+
+    reader.readAsText(file, 'UTF-8');
+}
+
+function createPreviewTable(lines) {
+    if (lines.length === 0) return '<div class="preview-error">无数据</div>';
+
+    let html = '<table class="preview-table">';
+
+    // 表头
+    const headers = parseCSVLine(lines[0]);
+    html += '<thead><tr>';
+    headers.forEach(header => {
+        html += `<th>${escapeHtml(header)}</th>`;
+    });
+    html += '</tr></thead>';
+
+    // 数据行
+    html += '<tbody>';
+    for (let i = 1; i < lines.length; i++) {
+        const cells = parseCSVLine(lines[i]);
+        html += '<tr>';
+
+        // 确保每行的列数与表头一致
+        for (let j = 0; j < headers.length; j++) {
+            const cellValue = cells[j] || '';
+            html += `<td>${escapeHtml(cellValue)}</td>`;
+        }
+        html += '</tr>';
+    }
+    html += '</tbody></table>';
+
+    return html;
+}
+
+function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (char === '"') {
+            inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+
+    result.push(current.trim());
+    return result;
+}
+
+function showPreviewError(previewContentId, message) {
+    document.getElementById(previewContentId).innerHTML =
+        `<div class="preview-error">${escapeHtml(message)}</div>`;
+    document.getElementById(previewContentId.replace('Content', '')).style.display = 'block';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}

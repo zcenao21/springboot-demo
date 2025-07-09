@@ -91,6 +91,60 @@
     min-height: 100px;
 }
 
+/* 添加文件预览样式 */
+.file-preview {
+    margin-top: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+    padding: 10px;
+}
+
+.file-preview h5 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 14px;
+}
+
+.preview-content {
+    max-height: 300px;
+    overflow: auto;
+    background-color: white;
+    border: 1px solid #eee;
+    border-radius: 3px;
+}
+
+.preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.preview-table th,
+.preview-table td {
+    border: 1px solid #ddd;
+    padding: 4px 8px;
+    text-align: left;
+}
+
+.preview-table th {
+    background-color: #f5f5f5;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+}
+
+.preview-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.preview-error {
+    color: #d32f2f;
+    padding: 10px;
+    background-color: #ffebee;
+    border-radius: 3px;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .excel-upload-container {

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>欢迎使用Will的网站</title>
+    <title>数仓工具</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/firework.css">
     <link rel="stylesheet" href="css/excelUpload.css">
@@ -33,8 +33,12 @@
                             <input type="file" name="file" id="csvA" accept=".csv" class="file-input">
                             <div class="file-info" id="fileInfoA">未选择文件</div>
                         </div>
-                        <input class="btn btn-primary" type="submit" value="上传文件A">
                     </form>
+                    <!-- 添加文件预览区域 -->
+                    <div class="file-preview" id="previewA" style="display: none;">
+                        <h5>文件预览 (前10行)</h5>
+                        <div class="preview-content" id="previewContentA"></div>
+                    </div>
                 </div>
 
                 <div class="excel-upload-section">
@@ -45,8 +49,12 @@
                             <input type="file" name="file" id="csvB" accept=".csv" class="file-input">
                             <div class="file-info" id="fileInfoB">未选择文件</div>
                         </div>
-                        <input class="btn btn-primary" type="submit" value="上传文件B">
                     </form>
+                    <!-- 添加文件预览区域 -->
+                    <div class="file-preview" id="previewB" style="display: none;">
+                        <h5>文件预览 (前10行)</h5>
+                        <div class="preview-content" id="previewContentB"></div>
+                    </div>
                 </div>
             </div>
 
