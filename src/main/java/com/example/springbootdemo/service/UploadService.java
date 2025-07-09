@@ -381,11 +381,36 @@ public class UploadService {
 			// 临时使用简单的解析方式，实际项目中应该使用专业的JSON库
 			log.info("解析匹配规则: {}", matchRulesJson);
 
-			// 返回默认规则结构，实际应该解析JSON
+			// 解析JSON结构：
+			// {
+			//   "primaryKeys": [
+			//     {"fieldA": "id", "fieldB": "id"},
+			//     {"fieldA": "name", "fieldB": "name"}
+			//   ],
+			//   "options": {
+			//     "caseSensitive": false,
+			//     "trimSpaces": true,
+			//     "exactMatch": true
+			//   }
+			// }
+
 			Map<String, Object> rules = new HashMap<>();
-			rules.put("primaryKeys", Arrays.asList("id")); // 默认主键
-			rules.put("additionalRules", new ArrayList<>()); // 附加规则
-			rules.put("options", new HashMap<>()); // 匹配选项
+
+			// 默认主键字段配置（实际应该从JSON解析）
+			List<Map<String, String>> primaryKeys = new ArrayList<>();
+			Map<String, String> defaultKey = new HashMap<>();
+			defaultKey.put("fieldA", "id");
+			defaultKey.put("fieldB", "id");
+			primaryKeys.add(defaultKey);
+
+			rules.put("primaryKeys", primaryKeys); // 主键字段对数组
+
+			// 默认匹配选项（实际应该从JSON解析）
+			Map<String, Object> options = new HashMap<>();
+			options.put("caseSensitive", false);
+			options.put("trimSpaces", true);
+			options.put("exactMatch", true);
+			rules.put("options", options);
 
 			return rules;
 		} catch (Exception e) {
@@ -397,20 +422,19 @@ public class UploadService {
 	private int performMatching(List<CSVRecord> recordsA, List<CSVRecord> recordsB,
 							   Map<String, Object> matchRules, List<CsvMatchResult.MatchDetail> matchDetails) {
 
-		List<String> primaryKeys = (List<String>) matchRules.get("primaryKeys");
-		List<Map<String, Object>> additionalRules = (List<Map<String, Object>>) matchRules.get("additionalRules");
+		List<Map<String, String>> primaryKeys = (List<Map<String, String>>) matchRules.get("primaryKeys");
 		Map<String, Object> options = (Map<String, Object>) matchRules.get("options");
 
-		log.info("执行匹配 - 主键字段: {}, 附加规则数: {}", primaryKeys, additionalRules.size());
+		log.info("执行匹配 - 主键字段数: {}", primaryKeys.size());
 
 		int matchedCount = 0;
 
 		// 为文件B创建索引以提高匹配效率
-		Map<String, List<CSVRecord>> indexB = createIndex(recordsB, primaryKeys);
+		Map<String, List<CSVRecord>> indexB = createIndexWithFieldPairs(recordsB, primaryKeys);
 
 		// 遍历文件A的每条记录
 		for (CSVRecord recordA : recordsA) {
-			String keyA = buildKey(recordA, primaryKeys);
+			String keyA = buildKeyWithFieldPairs(recordA, primaryKeys, true);
 			List<CSVRecord> candidatesB = indexB.get(keyA);
 
 			boolean foundMatch = false;
@@ -418,9 +442,9 @@ public class UploadService {
 			if (candidatesB != null && !candidatesB.isEmpty()) {
 				// 在候选记录中查找最佳匹配
 				for (CSVRecord recordB : candidatesB) {
-					if (isRecordMatch(recordA, recordB, primaryKeys, additionalRules, options)) {
+					if (isRecordMatchWithFieldPairs(recordA, recordB, primaryKeys, options)) {
 						// 找到匹配
-						CsvMatchResult.MatchDetail detail = createMatchDetail(recordA, recordB, primaryKeys, true);
+						CsvMatchResult.MatchDetail detail = createMatchDetailWithFieldPairs(recordA, recordB, primaryKeys, true);
 						matchDetails.add(detail);
 						matchedCount++;
 						foundMatch = true;
@@ -431,7 +455,7 @@ public class UploadService {
 
 			if (!foundMatch) {
 				// 未找到匹配
-				CsvMatchResult.MatchDetail detail = createMatchDetail(recordA, null, primaryKeys, false);
+				CsvMatchResult.MatchDetail detail = createMatchDetailWithFieldPairs(recordA, null, primaryKeys, false);
 				matchDetails.add(detail);
 			}
 		}
@@ -439,22 +463,25 @@ public class UploadService {
 		return matchedCount;
 	}
 
-	private Map<String, List<CSVRecord>> createIndex(List<CSVRecord> records, List<String> keyFields) {
+	private Map<String, List<CSVRecord>> createIndexWithFieldPairs(List<CSVRecord> records, List<Map<String, String>> keyFieldPairs) {
 		Map<String, List<CSVRecord>> index = new HashMap<>();
 
 		for (CSVRecord record : records) {
-			String key = buildKey(record, keyFields);
+			String key = buildKeyWithFieldPairs(record, keyFieldPairs, false);
 			index.computeIfAbsent(key, k -> new ArrayList<>()).add(record);
 		}
 
 		return index;
 	}
 
-	private String buildKey(CSVRecord record, List<String> keyFields) {
+	private String buildKeyWithFieldPairs(CSVRecord record, List<Map<String, String>> keyFieldPairs, boolean useFieldA) {
 		StringBuilder key = new StringBuilder();
-		for (String field : keyFields) {
+
+		for (Map<String, String> fieldPair : keyFieldPairs) {
+			String fieldName = useFieldA ? fieldPair.get("fieldA") : fieldPair.get("fieldB");
+
 			try {
-				String value = record.get(field);
+				String value = record.get(fieldName);
 				if (key.length() > 0) {
 					key.append("|");
 				}
@@ -470,16 +497,21 @@ public class UploadService {
 		return key.toString();
 	}
 
-	private boolean isRecordMatch(CSVRecord recordA, CSVRecord recordB, List<String> primaryKeys,
-								 List<Map<String, Object>> additionalRules, Map<String, Object> options) {
+	private boolean isRecordMatchWithFieldPairs(CSVRecord recordA, CSVRecord recordB,
+											   List<Map<String, String>> primaryKeys,
+											   Map<String, Object> options) {
 
-		// 首先检查主键是否匹配
-		for (String key : primaryKeys) {
+		// 检查主键字段对是否匹配
+		for (Map<String, String> fieldPair : primaryKeys) {
 			try {
-				String valueA = recordA.get(key);
-				String valueB = recordB.get(key);
+				String fieldA = fieldPair.get("fieldA");
+				String fieldB = fieldPair.get("fieldB");
 
-				if (!Objects.equals(valueA, valueB)) {
+				String valueA = recordA.get(fieldA);
+				String valueB = recordB.get(fieldB);
+
+				// 应用匹配选项
+				if (!compareValues(valueA, valueB, options)) {
 					return false;
 				}
 			} catch (Exception e) {
@@ -487,64 +519,53 @@ public class UploadService {
 			}
 		}
 
-		// 检查附加匹配规则
-		for (Map<String, Object> rule : additionalRules) {
-			if (!checkAdditionalRule(recordA, recordB, rule)) {
-				return false;
-			}
-		}
-
 		return true;
 	}
 
-	private boolean checkAdditionalRule(CSVRecord recordA, CSVRecord recordB, Map<String, Object> rule) {
-		try {
-			String fieldA = (String) rule.get("fieldA");
-			String fieldB = (String) rule.get("fieldB");
-			String condition = (String) rule.get("condition");
+	private boolean compareValues(String valueA, String valueB, Map<String, Object> options) {
+		// 处理null值
+		if (valueA == null && valueB == null) return true;
+		if (valueA == null || valueB == null) return false;
 
-			String valueA = recordA.get(fieldA);
-			String valueB = recordB.get(fieldB);
-
-			switch (condition) {
-				case "equals":
-					return Objects.equals(valueA, valueB);
-				case "contains":
-					return valueA != null && valueB != null && valueA.contains(valueB);
-				case "startsWith":
-					return valueA != null && valueB != null && valueA.startsWith(valueB);
-				case "endsWith":
-					return valueA != null && valueB != null && valueA.endsWith(valueB);
-				default:
-					return Objects.equals(valueA, valueB);
-			}
-		} catch (Exception e) {
-			log.warn("检查附加规则时出错", e);
-			return false;
+		// 应用trimSpaces选项
+		Boolean trimSpaces = (Boolean) options.get("trimSpaces");
+		if (trimSpaces != null && trimSpaces) {
+			valueA = valueA.trim();
+			valueB = valueB.trim();
 		}
+
+		// 应用caseSensitive选项
+		Boolean caseSensitive = (Boolean) options.get("caseSensitive");
+		if (caseSensitive != null && !caseSensitive) {
+			valueA = valueA.toLowerCase();
+			valueB = valueB.toLowerCase();
+		}
+
+		return Objects.equals(valueA, valueB);
 	}
 
-	private CsvMatchResult.MatchDetail createMatchDetail(CSVRecord recordA, CSVRecord recordB,
-														List<String> keyFields, boolean matched) {
+	private CsvMatchResult.MatchDetail createMatchDetailWithFieldPairs(CSVRecord recordA, CSVRecord recordB,
+													List<Map<String, String>> keyFieldPairs, boolean matched) {
 		CsvMatchResult.MatchDetail detail = new CsvMatchResult.MatchDetail();
-		detail.setDataA(getRecordSummary(recordA, keyFields));
-		detail.setDataB(recordB != null ? getRecordSummary(recordB, keyFields) : "无对应记录");
+		detail.setDataA(getRecordSummary(recordA, keyFieldPairs, true));
+		detail.setDataB(recordB != null ? getRecordSummary(recordB, keyFieldPairs, false) : "无对应记录");
 		detail.setMatched(matched);
-		detail.setMatchField(String.join(",", keyFields));
-		detail.setSimilarity(recordB != null ? calculateSimilarity(recordA, recordB, keyFields) : 0.0);
+		detail.setMatchField(getMatchFieldsDescription(keyFieldPairs));
+		detail.setSimilarity(recordB != null ? calculateSimilarity(recordA, recordB, keyFieldPairs) : 0.0);
 
 		return detail;
 	}
 
-	private String getRecordSummary(CSVRecord record, List<String> columns) {
+	private String getRecordSummary(CSVRecord record, List<Map<String, String>> keyFieldPairs, boolean useFieldA) {
 		StringBuilder summary = new StringBuilder();
-		for (String column : columns) {
+		for (Map<String, String> fieldPair : keyFieldPairs) {
 			try {
-				String value = record.get(column);
+				String fieldName = useFieldA ? fieldPair.get("fieldA") : fieldPair.get("fieldB");
+				String value = record.get(fieldName);
 				if (summary.length() > 0) {
 					summary.append(", ");
 				}
-				summary.append(column).append(": ").append(value);
+				summary.append(fieldName).append(": ").append(value);
 			} catch (Exception e) {
 				// 忽略错误
 			}
@@ -552,14 +573,27 @@ public class UploadService {
 		return summary.toString();
 	}
 
-	private double calculateSimilarity(CSVRecord recordA, CSVRecord recordB, List<String> commonColumns) {
-		int matchCount = 0;
-		int totalCount = commonColumns.size();
+	private String getMatchFieldsDescription(List<Map<String, String>> keyFieldPairs) {
+		StringBuilder desc = new StringBuilder();
+		for (Map<String, String> fieldPair : keyFieldPairs) {
+			if (desc.length() > 0) {
+				desc.append(", ");
+			}
+			desc.append(fieldPair.get("fieldA")).append("↔").append(fieldPair.get("fieldB"));
+		}
+		return desc.toString();
+	}
 
-		for (String column : commonColumns) {
+	private double calculateSimilarity(CSVRecord recordA, CSVRecord recordB, List<Map<String, String>> keyFieldPairs) {
+		int matchCount = 0;
+		int totalCount = keyFieldPairs.size();
+
+		for (Map<String, String> fieldPair : keyFieldPairs) {
 			try {
-				String valueA = recordA.get(column);
-				String valueB = recordB.get(column);
+				String fieldA = fieldPair.get("fieldA");
+				String fieldB = fieldPair.get("fieldB");
+				String valueA = recordA.get(fieldA);
+				String valueB = recordB.get(fieldB);
 
 				if (Objects.equals(valueA, valueB)) {
 					matchCount++;
@@ -573,11 +607,11 @@ public class UploadService {
 	}
 
 	private void handleRemainingRecords(List<CSVRecord> recordsA, List<CSVRecord> recordsB,
-										List<String> commonColumns, List<CsvMatchResult.MatchDetail> matchDetails) {
+										List<Map<String, String>> keyFieldPairs, List<CsvMatchResult.MatchDetail> matchDetails) {
 		// 处理文件A中剩余的记录
 		for (int i = recordsB.size(); i < recordsA.size(); i++) {
 			CsvMatchResult.MatchDetail detail = new CsvMatchResult.MatchDetail();
-			detail.setDataA(getRecordSummary(recordsA.get(i), commonColumns));
+			detail.setDataA(getRecordSummary(recordsA.get(i), keyFieldPairs, true));
 			detail.setDataB("无对应记录");
 			detail.setMatched(false);
 			detail.setSimilarity(0.0);
@@ -588,7 +622,7 @@ public class UploadService {
 		for (int i = recordsA.size(); i < recordsB.size(); i++) {
 			CsvMatchResult.MatchDetail detail = new CsvMatchResult.MatchDetail();
 			detail.setDataA("无对应记录");
-			detail.setDataB(getRecordSummary(recordsB.get(i), commonColumns));
+			detail.setDataB(getRecordSummary(recordsB.get(i), keyFieldPairs, false));
 			detail.setMatched(false);
 			detail.setSimilarity(0.0);
 			matchDetails.add(detail);
