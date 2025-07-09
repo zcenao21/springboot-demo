@@ -268,8 +268,12 @@ function clearFiles() {
     document.getElementById('previewA').style.display = 'none';
     document.getElementById('previewB').style.display = 'none';
 
-    const resultsDiv = document.getElementById('matchResults');
-    resultsDiv.style.display = 'none';
+    // 清空列名和匹配规则
+    columnsA = [];
+    columnsB = [];
+    document.getElementById('matchRulesSection').style.display = 'none';
+    document.getElementById('rulesList').innerHTML = '';
+    additionalRuleCount = 0;
 }
 
 // 页面加载时添加样式
@@ -295,6 +299,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// 全局变量存储列名
+let columnsA = [];
+let columnsB = [];
+let additionalRuleCount = 0;
+
+// 修改文件选择处理函数
 function handleFileSelect(event, fileType) {
     const file = event.target.files[0];
     const fileInfoId = `fileInfo${fileType}`;
@@ -302,19 +312,26 @@ function handleFileSelect(event, fileType) {
     const previewContentId = `previewContent${fileType}`;
 
     if (file) {
-        // 更新文件信息
         document.getElementById(fileInfoId).textContent =
             `${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
 
-        // 预览文件内容
-        previewCSVFile(file, previewId, previewContentId);
+        previewCSVFile(file, previewId, previewContentId, fileType);
     } else {
         document.getElementById(fileInfoId).textContent = '未选择文件';
         document.getElementById(previewId).style.display = 'none';
+
+        // 清空对应的列名数据
+        if (fileType === 'A') {
+            columnsA = [];
+        } else {
+            columnsB = [];
+        }
+        updateMatchRulesSection();
     }
 }
 
-function previewCSVFile(file, previewId, previewContentId) {
+// 修改预览函数，添加列名提取
+function previewCSVFile(file, previewId, previewContentId, fileType) {
     const reader = new FileReader();
 
     reader.onload = function(e) {
@@ -327,12 +344,22 @@ function previewCSVFile(file, previewId, previewContentId) {
                 return;
             }
 
-            // 只显示前10行
+            // 提取列名
+            const headers = parseCSVLine(lines[0]);
+            if (fileType === 'A') {
+                columnsA = headers;
+            } else {
+                columnsB = headers;
+            }
+
             const previewLines = lines.slice(0, 10);
             const table = createPreviewTable(previewLines);
 
             document.getElementById(previewContentId).innerHTML = table;
             document.getElementById(previewId).style.display = 'block';
+
+            // 更新匹配规则区域
+            updateMatchRulesSection();
 
         } catch (error) {
             showPreviewError(previewContentId, '文件读取失败: ' + error.message);
@@ -346,6 +373,132 @@ function previewCSVFile(file, previewId, previewContentId) {
     reader.readAsText(file, 'UTF-8');
 }
 
+// 更新匹配规则区域
+function updateMatchRulesSection() {
+    const matchRulesSection = document.getElementById('matchRulesSection');
+
+    if (columnsA.length > 0 && columnsB.length > 0) {
+        matchRulesSection.style.display = 'block';
+        updateFieldSelects();
+    } else {
+        matchRulesSection.style.display = 'none';
+    }
+}
+
+// 更新字段选择下拉框
+function updateFieldSelects() {
+    updateSelectOptions('primaryKeyA', columnsA);
+    updateSelectOptions('primaryKeyB', columnsB);
+
+    // 更新所有附加规则的下拉框
+    const additionalRules = document.querySelectorAll('.additional-rule-item');
+    additionalRules.forEach(rule => {
+        const selectA = rule.querySelector('.rule-field-a');
+        const selectB = rule.querySelector('.rule-field-b');
+        if (selectA && selectB) {
+            updateSelectOptions(selectA.id, columnsA);
+            updateSelectOptions(selectB.id, columnsB);
+        }
+    });
+}
+
+// 更新下拉框选项
+function updateSelectOptions(selectId, columns) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    const currentValue = select.value;
+    select.innerHTML = `<option value="">请选择字段</option>`;
+
+    columns.forEach(column => {
+        const option = document.createElement('option');
+        option.value = column;
+        option.textContent = column;
+        if (column === currentValue) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+}
+
+// 添加匹配规则
+function addMatchRule() {
+    additionalRuleCount++;
+    const ruleId = `rule_${additionalRuleCount}`;
+
+    const ruleHtml = `
+        <div class="additional-rule-item" id="${ruleId}">
+            <select id="ruleFieldA_${additionalRuleCount}" class="field-select rule-field-a">
+                <option value="">选择文件A字段</option>
+            </select>
+            <span class="mapping-arrow">↔</span>
+            <select id="ruleFieldB_${additionalRuleCount}" class="field-select rule-field-b">
+                <option value="">选择文件B字段</option>
+            </select>
+            <button type="button" class="remove-rule-btn" onclick="removeMatchRule('${ruleId}')">删除</button>
+        </div>
+    `;
+
+    document.getElementById('rulesList').insertAdjacentHTML('beforeend', ruleHtml);
+
+    // 更新新添加的下拉框
+    updateSelectOptions(`ruleFieldA_${additionalRuleCount}`, columnsA);
+    updateSelectOptions(`ruleFieldB_${additionalRuleCount}`, columnsB);
+}
+
+// 删除匹配规则
+function removeMatchRule(ruleId) {
+    const ruleElement = document.getElementById(ruleId);
+    if (ruleElement) {
+        ruleElement.remove();
+    }
+}
+
+// 获取匹配规则配置
+function getMatchRules() {
+    const rules = {
+        primaryKey: {
+            fieldA: document.getElementById('primaryKeyA').value,
+            fieldB: document.getElementById('primaryKeyB').value
+        },
+        additionalRules: [],
+        options: {
+            caseSensitive: document.getElementById('caseSensitive').checked,
+            trimSpaces: document.getElementById('trimSpaces').checked,
+            exactMatch: document.getElementById('exactMatch').checked
+        }
+    };
+
+    // 收集附加规则
+    const additionalRules = document.querySelectorAll('.additional-rule-item');
+    additionalRules.forEach(rule => {
+        const fieldA = rule.querySelector('.rule-field-a').value;
+        const fieldB = rule.querySelector('.rule-field-b').value;
+
+        if (fieldA && fieldB) {
+            rules.additionalRules.push({
+                fieldA: fieldA,
+                fieldB: fieldB
+            });
+        }
+    });
+
+    return rules;
+}
+
+// 验证匹配规则
+function validateMatchRules() {
+    const rules = getMatchRules();
+
+    if (!rules.primaryKey.fieldA || !rules.primaryKey.fieldB) {
+        alert('请选择主键匹配字段！');
+        return false;
+    }
+
+    return true;
+}
+
+// 生成预览表格
 function createPreviewTable(lines) {
     if (lines.length === 0) return '<div class="preview-error">无数据</div>';
 
@@ -377,6 +530,7 @@ function createPreviewTable(lines) {
     return html;
 }
 
+// 解析CSV行
 function parseCSVLine(line) {
     const result = [];
     let current = '';
@@ -399,14 +553,33 @@ function parseCSVLine(line) {
     return result;
 }
 
+// 显示预览错误
 function showPreviewError(previewContentId, message) {
     document.getElementById(previewContentId).innerHTML =
         `<div class="preview-error">${escapeHtml(message)}</div>`;
     document.getElementById(previewContentId.replace('Content', '')).style.display = 'block';
 }
 
+// 转义HTML
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// 修改匹配处理函数，包含匹配规则
+function processMatch() {
+    if (!validateMatchRules()) {
+        return;
+    }
+
+    const matchRules = getMatchRules();
+    console.log('匹配规则:', matchRules);
+
+    // 这里可以将匹配规则发送到后端
+    // 或者在前端进行匹配处理
+
+    alert('匹配规则配置完成！\n主键字段: ' +
+          matchRules.primaryKey.fieldA + ' ↔ ' + matchRules.primaryKey.fieldB +
+          '\n附加规则数量: ' + matchRules.additionalRules.length);
 }

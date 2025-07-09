@@ -56,6 +56,44 @@
                         <div class="preview-content" id="previewContentB"></div>
                     </div>
                 </div>
+
+                <!-- 添加匹配规则配置区域 -->
+                <div class="match-rules-section" id="matchRulesSection" style="display: none;">
+                    <h4>🔗 匹配规则配置</h4>
+                    <div class="rules-container">
+                        <div class="rule-item">
+                            <label>主键匹配字段：</label>
+                            <div class="field-mapping">
+                                <select id="primaryKeyA" class="field-select">
+                                    <option value="">请选择文件A的主键字段</option>
+                                </select>
+                                <span class="mapping-arrow">↔</span>
+                                <select id="primaryKeyB" class="field-select">
+                                    <option value="">请选择文件B的主键字段</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="additional-rules" id="additionalRules">
+                            <h5>附加匹配条件 (可选)</h5>
+                            <div id="rulesList"></div>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="addMatchRule()">+ 添加匹配条件</button>
+                        </div>
+
+                        <div class="match-options">
+                            <h5>匹配选项</h5>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="caseSensitive"> 区分大小写
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="trimSpaces" checked> 忽略前后空格
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="exactMatch" checked> 精确匹配
+                            </label>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="match-controls">
