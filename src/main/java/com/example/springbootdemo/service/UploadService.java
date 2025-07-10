@@ -5,6 +5,7 @@ import com.example.springbootdemo.dto.CsvMatchResult;
 import com.example.springbootdemo.entity.TempDirectoryAndFile;
 import com.example.springbootdemo.enums.MergeOption;
 import com.example.springbootdemo.util.FileUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -13,10 +14,23 @@ import org.apache.commons.io.FileUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -377,44 +391,94 @@ public class UploadService {
 
 	private Map<String, Object> parseMatchRules(String matchRulesJson) {
 		try {
-			// 这里需要使用JSON解析库，比如Jackson或Gson
-			// 临时使用简单的解析方式，实际项目中应该使用专业的JSON库
-			log.info("解析匹配规则: {}", matchRulesJson);
+			if (matchRulesJson == null || matchRulesJson.trim().isEmpty()) {
+				throw new IllegalArgumentException("匹配规则不能为空");
+			}
 
-			// 解析JSON结构：
-			// {
-			//   "primaryKeys": [
-			//     {"fieldA": "id", "fieldB": "id"},
-			//     {"fieldA": "name", "fieldB": "name"}
-			//   ],
-			//   "options": {
-			//     "caseSensitive": false,
-			//     "trimSpaces": true,
-			//     "exactMatch": true
-			//   }
-			// }
+			// 使用Jackson ObjectMapper解析JSON
+			ObjectMapper objectMapper = new ObjectMapper();
+			Map<String, Object> jsonMap = objectMapper.readValue(matchRulesJson, Map.class);
 
 			Map<String, Object> rules = new HashMap<>();
 
-			// 默认主键字段配置（实际应该从JSON解析）
+			// 解析主键字段配置
 			List<Map<String, String>> primaryKeys = new ArrayList<>();
-			Map<String, String> defaultKey = new HashMap<>();
-			defaultKey.put("fieldA", "id");
-			defaultKey.put("fieldB", "id");
-			primaryKeys.add(defaultKey);
+			Object primaryKeysObj = jsonMap.get("primaryKeys");
 
-			rules.put("primaryKeys", primaryKeys); // 主键字段对数组
+			if (primaryKeysObj instanceof List) {
+				List<?> primaryKeysList = (List<?>) primaryKeysObj;
+				for (Object keyObj : primaryKeysList) {
+					if (keyObj instanceof Map) {
+						Map<?, ?> keyMap = (Map<?, ?>) keyObj;
+						Map<String, String> fieldPair = new HashMap<>();
 
-			// 默认匹配选项（实际应该从JSON解析）
+						Object fieldA = keyMap.get("fieldA");
+						Object fieldB = keyMap.get("fieldB");
+
+						if (fieldA != null && fieldB != null) {
+							fieldPair.put("fieldA", fieldA.toString());
+							fieldPair.put("fieldB", fieldB.toString());
+							primaryKeys.add(fieldPair);
+						}
+					}
+				}
+			}
+
+			if (primaryKeys.isEmpty()) {
+				throw new IllegalArgumentException("至少需要指定一个主键字段对");
+			}
+
+			rules.put("primaryKeys", primaryKeys);
+
+			// 解析匹配选项
 			Map<String, Object> options = new HashMap<>();
-			options.put("caseSensitive", false);
-			options.put("trimSpaces", true);
-			options.put("exactMatch", true);
+			Object optionsObj = jsonMap.get("options");
+
+			if (optionsObj instanceof Map) {
+				Map<?, ?> optionsMap = (Map<?, ?>) optionsObj;
+
+				// 解析caseSensitive选项
+				Object caseSensitive = optionsMap.get("caseSensitive");
+				options.put("caseSensitive", caseSensitive instanceof Boolean ? caseSensitive : false);
+
+				// 解析trimSpaces选项
+				Object trimSpaces = optionsMap.get("trimSpaces");
+				options.put("trimSpaces", trimSpaces instanceof Boolean ? trimSpaces : true);
+
+				// 解析exactMatch选项
+				Object exactMatch = optionsMap.get("exactMatch");
+				options.put("exactMatch", exactMatch instanceof Boolean ? exactMatch : true);
+
+				// 解析其他可能的选项
+				Object ignoreCase = optionsMap.get("ignoreCase");
+				options.put("ignoreCase", ignoreCase instanceof Boolean ? ignoreCase : false);
+
+				Object fuzzyMatch = optionsMap.get("fuzzyMatch");
+				options.put("fuzzyMatch", fuzzyMatch instanceof Boolean ? fuzzyMatch : false);
+
+				Object similarityThreshold = optionsMap.get("similarityThreshold");
+				if (similarityThreshold instanceof Number) {
+					options.put("similarityThreshold", ((Number) similarityThreshold).doubleValue());
+				} else {
+					options.put("similarityThreshold", 0.8);
+				}
+			} else {
+				// 如果没有提供options，使用默认值
+				options.put("caseSensitive", false);
+				options.put("trimSpaces", true);
+				options.put("exactMatch", true);
+				options.put("ignoreCase", false);
+				options.put("fuzzyMatch", false);
+				options.put("similarityThreshold", 0.8);
+			}
 			rules.put("options", options);
 
+			log.info("成功解析匹配规则 - 主键字段数: {}, 选项: {}", primaryKeys.size(), options);
+
 			return rules;
+
 		} catch (Exception e) {
-			log.error("解析匹配规则失败", e);
+			log.error("解析匹配规则失败: {}", matchRulesJson, e);
 			throw new RuntimeException("匹配规则格式错误: " + e.getMessage());
 		}
 	}
